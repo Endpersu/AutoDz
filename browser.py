@@ -17,7 +17,7 @@ with sync_playwright() as p:
     browser = p.chromium.launch(headless=False)
     page = browser.new_page()
 
-    page.goto("https://journal.top-academy.ru/ru/auth/login/index")
+    page.goto("https://journal.top-academy.ru/")
     logger.info("Страница загружена")
 
     page.wait_for_selector('input[name="username"]', timeout=10000)
@@ -33,9 +33,49 @@ with sync_playwright() as p:
 
     logger.success(f"Вход выполнен! Текущий URL: {page.url}")
 
-    page.goto("https://journal.top-academy.ru/ru/main/homework/page/index")
+    page.goto("https://journal.top-academy.ru/main/homework/page/index")
 
-    logger.info("Находимся в разделе домашнего задания")
+    # Ждем загрузки страницы с домашними заданиями
+    page.wait_for_selector('.homework-item', timeout=10000)
+    logger.info("Страница с домашними заданиями загружена")
+
+    # Ищем все элементы с домашними заданиями
+    homework_items = page.query_selector_all('.homework-item')
+    logger.info(f"Найдено элементов с домашними заданиями: {len(homework_items)}")
+
+    # Проходим по каждому домашнему заданию
+    for index, homework_item in enumerate(homework_items):
+        try:
+            # Проверяем, есть ли кнопка загрузки выполненного задания
+            upload_button = homework_item.query_selector('.upload-file img[src*="upload.png"]')
+            
+            if upload_button:
+                # Получаем информацию о предмете для логирования
+                subject_element = homework_item.query_selector('.name-spec')
+                subject_name = subject_element.inner_text() if subject_element else f"Задание {index + 1}"
+                
+                logger.info(f"Найдена кнопка загрузки для: {subject_name}")
+                
+                # Наводим курсор на элемент, чтобы показать кнопки
+                homework_item.hover()
+                page.wait_for_timeout(1000)  # Ждем появления кнопок
+                
+                # Кликаем на кнопку загрузки
+                upload_button.click()
+                logger.info(f"Клик на кнопку загрузки для: {subject_name}")
+                
+                # Ждем появления модального окна или формы загрузки
+                page.wait_for_timeout(3000)
+                
+                # Здесь можно добавить логику для загрузки файла
+                # Например: page.set_input_files('input[type="file"]', 'путь/к/файлу')
+                
+                logger.success(f"Готово к загрузке файла для: {subject_name}")
+                
+        except Exception as e:
+            logger.error(f"Ошибка при обработке задания {index + 1}: {e}")
+
+    logger.info("Обработка домашних заданий завершена")
 
     input("Вход выполнен. Нажмите Enter для закрытия...")
 
